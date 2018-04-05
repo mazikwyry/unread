@@ -21,7 +21,7 @@ module Unread
           array.each do |obj|
             raise ArgumentError unless obj.is_a?(self)
 
-            rm = obj.read_marks.where(:user_id => user.id).first || obj.read_marks.build(:user_id => user.id)
+            rm = obj.read_marks.where(:member_id => user.id).first || obj.read_marks.build(:member_id => user.id)
             rm.timestamp = obj.send(readable_options[:on])
             rm.save!
           end
@@ -72,7 +72,7 @@ module Unread
         ReadMark.transaction do
           ReadMark.delete_all :readable_type => self.base_class.name
           ReadMark.connection.execute <<-EOT
-            INSERT INTO #{ReadMark.table_name} (user_id, readable_type, timestamp)
+            INSERT INTO #{ReadMark.table_name} (member_id, readable_type, timestamp)
             SELECT #{ReadMark.reader_class.primary_key}, '#{self.base_class.name}', '#{Time.current.to_s(:db)}'
             FROM #{ReadMark.reader_class.table_name}
           EOT
@@ -83,8 +83,8 @@ module Unread
         assert_reader(user)
 
         ReadMark.transaction do
-          ReadMark.delete_all :readable_type => self.base_class.name, :user_id => user.id
-          ReadMark.create!    :readable_type => self.base_class.name, :user_id => user.id, :timestamp => Time.current
+          ReadMark.delete_all :readable_type => self.base_class.name, :member_id => user.id
+          ReadMark.create!    :readable_type => self.base_class.name, :member_id => user.id, :timestamp => Time.current
         end
       end
 
@@ -112,7 +112,7 @@ module Unread
             true
           end
         else
-          !!self.class.unread_by(user).exists?(self) # Rails4 does not return true/false, but nil/count instead.
+          !!self.class.unread_by(user).exists?(self.id) # Rails4 does not return true/false, but nil/count instead.
         end
       end
 
@@ -122,7 +122,7 @@ module Unread
 
         ReadMark.transaction do
           if unread?(user)
-            rm = read_mark(user) || read_marks.build(:user_id => user.id)
+            rm = read_mark(user) || read_marks.build(:member_id => user.id)
             rm.timestamp = self.send(readable_options[:on])
             rm.save!
           end
@@ -130,7 +130,7 @@ module Unread
       end
 
       def read_mark(user)
-        read_marks.where(:user_id => user.id).first
+        read_marks.where(:member_id => user.id).first
       end
     end
   end
